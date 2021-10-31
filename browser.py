@@ -1,5 +1,5 @@
 import logging
-logger = logging.getLogger("main.py")
+logger = logging.getLogger("browser.py")
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 
@@ -34,6 +34,11 @@ def request(url):
         type=socket.SOCK_STREAM,
         proto=socket.IPPROTO_TCP
     )
+
+    scheme, url = url.split("://", 1)
+    assert scheme in ["http", "https"], \
+        "Unknown scheme {}".format(scheme)
+
     host, path = _handle_input(url)
     s.connect((host, DEFAULT_PORT))
     first_line = f"GET {path} HTTP/1.0\r\n".encode("utf8")
@@ -50,10 +55,26 @@ def request(url):
     return headers, body
 
 
-def main(url):
+def show(body):
+    in_angle = False
+    for c in body:
+        if c == "<":
+            in_angle = True
+        elif c == ">":
+            in_angle = False
+        elif not in_angle:
+            print(c, end="")
+
+
+def load(url):
     headers, body = request(url)
-    print(headers)
-    print(body)
+    show(body)
+
 
 if __name__ == '__main__':
-    main("http://example.org/")
+    import sys
+    try:
+        url = sys.argv[1]
+    except IndexError:
+        url = "http://example.org/"
+    load(url)
