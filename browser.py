@@ -1,15 +1,20 @@
 import logging
+import socket
+import ssl
+import sys
+
 logger = logging.getLogger("browser.py")
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 
-DEFAULT_PORT = 80
-DEFAULT_SCHEME = "http://"
+
+class FileURL:
+
+    def __init__(self, path):
+        self.path = path
 
 
-def _handle_input(url):
-    assert url.startswith(DEFAULT_SCHEME)
-    url = url[len(DEFAULT_SCHEME):]
+def _handle_input(url, scheme):
     host, path = url.split("/", 1)  # TODO: It requires a "/" as a last char
     path = "/" + path
     logger.info(f"Host: {host}")
@@ -27,8 +32,17 @@ def _get_headers(response):
         headers[header.lower()] = value.strip()
 
 
+def _make_request(path, host):
+    lines = []
+    lines.append(f"GET {path} HTTP/1.1\r\n".encode("utf8"))
+    lines.append(f"Host: {host}\r\n".encode("utf8"))
+    lines.append(f"Connection: close\r\n".encode("utf8"))
+    lines.append(f"User-Agent: dipiert's browser\r\n\r\n".encode("utf8"))
+    return b''.join(lines)
+
+
 def request(url):
-    import socket
+
     s = socket.socket(
         family=socket.AF_INET,
         type=socket.SOCK_STREAM,
@@ -36,14 +50,31 @@ def request(url):
     )
 
     scheme, url = url.split("://", 1)
-    assert scheme in ["http", "https"], \
+
+    # TODO: Use polimorphism for  different schemes
+    assert scheme in ["http", "https", "file"], \
         "Unknown scheme {}".format(scheme)
 
-    host, path = _handle_input(url)
-    s.connect((host, DEFAULT_PORT))
-    first_line = f"GET {path} HTTP/1.0\r\n".encode("utf8")
-    second_line = f"Host: {host}\r\n\r\n".encode("utf8")
-    return_code = s.send(first_line+second_line)
+    host, path = _handle_input(url, scheme)
+    port = 80
+
+    if scheme == "file":
+        file_url = FileURL(url)
+        with open(file_url) as f:
+            print(f.readlines())
+
+    if ":" in host:
+        host, port = host.split(":", 1)
+        port = int(port)
+
+    if scheme == "https":
+        port = 443
+        ctx = ssl.create_default_context()
+        s = ctx.wrap_socket(s, server_hostname=host)
+
+    s.connect((host, port))
+
+    return_code = s.send(_make_request(path, host))
     logger.info(f"Bytes sent by socket: {return_code}")
     response = s.makefile("r", encoding="utf8", newline="\r\n")  # TODO: Get encoding from Content-Type
     statusline = response.readline()
@@ -72,9 +103,8 @@ def load(url):
 
 
 if __name__ == '__main__':
-    import sys
     try:
         url = sys.argv[1]
     except IndexError:
-        url = "http://example.org/"
+        url = "file://D:\\test_browser.txt/"
     load(url)
