@@ -3,5 +3,5 @@ from unittest import TestCase
 
 class TestBrowser(TestCase):
 
-    def test_handle_input(self):
+    def _get_host_and_path(self):
         pass

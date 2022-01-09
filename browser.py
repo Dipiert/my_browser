@@ -10,19 +10,133 @@ logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 
 
-class FileURL:
+class HTTPSURL:
+    def __init__(self):
+        self.port = 443
 
-    def __init__(self, path):
-        self.path = path
-
-
-def _get_host_and_path(url, scheme):
-    if scheme == constants.Schemes.FILE.value:
-        host = "localhost"
-        path = url
-    else:
+    @staticmethod
+    def get_host_and_path(url):
+        url = url.split("://", 1)[1]
         host, path = url.split("/", 1)  # TODO: It requires a "/" as a last char
         path = "/" + path
+
+        logger.info(f"Host: {host}")
+        logger.info(f"Path: {path}")
+
+        return host, path
+
+    def get_header_and_body(self, host, path):
+        s = socket.socket(
+            family=socket.AF_INET,
+            type=socket.SOCK_STREAM,
+            proto=socket.IPPROTO_TCP
+        )
+
+        if ":" in host:
+            host, port = host.split(":", 1)
+            logger.info(f"Setting port to {port}")
+            port = int(port)
+
+        s = ssl.create_default_context().wrap_socket(s, server_hostname=host)
+
+        # Below is common between HTTP and HTTPS:
+        s.connect((host, self.port))
+
+        return_code = s.send(_make_request(path, host))
+        logger.info(f"Bytes sent by socket: {return_code}")
+        response = s.makefile("r", encoding="utf8", newline="\r\n")  # TODO: Get encoding from Content-Type
+        statusline = response.readline()
+        version, status, explanation = statusline.split(" ", 2)
+        assert status == "200", "{}: {}".format(status, explanation)
+        headers = _get_headers(response)
+        body = response.read()
+        s.close()
+        return headers, body
+
+
+class HTTPURL:
+
+    def __init__(self):
+        self.port = 80
+
+    @staticmethod
+    def get_host_and_path(url):
+        url = url.split("://", 1)[1]
+        host, path = url.split("/", 1)  # TODO: It requires a "/" as a last char
+        path = "/" + path
+
+        logger.info(f"Host: {host}")
+        logger.info(f"Path: {path}")
+
+        return host, path
+
+    def get_header_and_body(self, host, path):
+        s = socket.socket(
+            family=socket.AF_INET,
+            type=socket.SOCK_STREAM,
+            proto=socket.IPPROTO_TCP
+        )
+
+        if ":" in host:
+            host, port = host.split(":", 1)
+            logger.info(f"Setting port to {port}")
+            self.port = int(port)
+
+        s.connect((host, self.port))
+
+        # Below is common between HTTP and HTTPS:
+        return_code = s.send(_make_request(path, host))
+        logger.info(f"Bytes sent by socket: {return_code}")
+        response = s.makefile("r", encoding="utf8", newline="\r\n")  # TODO: Get encoding from Content-Type
+        statusline = response.readline()
+        version, status, explanation = statusline.split(" ", 2)
+        assert status == "200", "{}: {}".format(status, explanation)
+        headers = _get_headers(response)
+        body = response.read()
+        s.close()
+        return headers, body
+
+
+class DataURL:
+
+    @staticmethod
+    def get_host_and_path(url):
+        host = "localhost"
+        path = url
+
+        logger.info(f"Host: {host}")
+        logger.info(f"Path: {path}")
+
+        return host, path
+
+    def get_header_and_body(self, host, path):
+        """
+        As per RFC 2397 -> data:[<media type>][;base64],<data>
+        """
+        return None, url.split(",", 1)[1]
+
+
+class FileURL:
+
+    @staticmethod
+    def get_host_and_path(url):
+        host = "localhost"
+        path = url.split("://", 1)[1]
+
+        logger.info(f"Host: {host}")
+        logger.info(f"Path: {path}")
+
+        return host, path
+
+    def get_header_and_body(self, host, url):
+        logger.info(f"Opening {url}")
+        with open(url) as f:
+            return None, f.readlines()
+
+
+def get_host_and_path(url):
+    host, path = url.split("/", 1)  # TODO: It requires a "/" as a last char
+    path = "/" + path
 
     logger.info(f"Host: {host}")
     logger.info(f"Path: {path}")
@@ -41,62 +155,30 @@ def _get_headers(response):
 
 
 def _make_request(path, host):
-    lines = []
-    lines.append(f"GET {path} HTTP/1.1\r\n".encode("utf8"))
-    lines.append(f"Host: {host}\r\n".encode("utf8"))
-    lines.append(f"Connection: close\r\n".encode("utf8"))
-    lines.append(f"User-Agent: dipiert's browser\r\n\r\n".encode("utf8"))
+    lines = [
+        f"GET {path} HTTP/1.1\r\n".encode("utf8"),
+        f"Host: {host}\r\n".encode("utf8"),
+        f"Connection: close\r\n".encode("utf8"),
+        f"User-Agent: dipiert's browser\r\n\r\n".encode("utf8")
+    ]
     return b''.join(lines)
 
 
 def request(url):
+    if url.startswith(constants.Schemes.DATA.value):
+        url_parser = DataURL()
+    if url.startswith(constants.Schemes.FILE.value):
+        url_parser = FileURL()
+    if url.startswith(constants.Schemes.HTTPS.value):
+        url_parser = HTTPSURL()
+    if url.startswith(constants.Schemes.HTTP.value):
+        url_parser = HTTPURL()
 
-    s = socket.socket(
-        family=socket.AF_INET,
-        type=socket.SOCK_STREAM,
-        proto=socket.IPPROTO_TCP
-    )
+    if not url_parser:
+        raise ValueError(f"Unknown scheme in url: {url}")
 
-    scheme, url = url.split("://", 1)
-
-    # TODO: Use polimorphism for  different schemes
-    assert scheme in [
-        constants.Schemes.HTTP.value,
-        constants.Schemes.HTTPS.value,
-        constants.Schemes.FILE.value
-    ], \
-    "Unknown scheme {}".format(scheme)
-
-    host, path = _get_host_and_path(url, scheme)
-    port = 80
-
-    if scheme == constants.Schemes.FILE.value:
-        path = FileURL(url).path
-        logger.info(f"Opening {path}")
-        with open(path) as f:
-            return None, f.readlines()
-    else:
-        if ":" in host:
-            host, port = host.split(":", 1)
-            port = int(port)
-
-        if scheme == constants.Schemes.HTTPS.value:
-            port = 443
-            ctx = ssl.create_default_context()
-            s = ctx.wrap_socket(s, server_hostname=host)
-
-        s.connect((host, port))
-
-        return_code = s.send(_make_request(path, host))
-        logger.info(f"Bytes sent by socket: {return_code}")
-        response = s.makefile("r", encoding="utf8", newline="\r\n")  # TODO: Get encoding from Content-Type
-        statusline = response.readline()
-        version, status, explanation = statusline.split(" ", 2)
-        assert status == "200", "{}: {}".format(status, explanation)
-        headers = _get_headers(response)
-        body = response.read()
-        s.close()
-        return headers, body
+    host, path = url_parser.get_host_and_path(url)
+    return url_parser.get_header_and_body(host, path)
 
 
 def show(body):
@@ -116,6 +198,17 @@ def load(url):
 
 
 if __name__ == '__main__':
+    """
+    Usage examples:
+    Data:
+       # python3 browser.py "data:text/html,Hello world!"
+    File:
+       # python3 browser.py file://D:\\test_browser.txt
+    HTTP:
+       # python3 browser.py http://example.org/
+    HTTPS:
+       # python3 browser.py https://example.org/
+    """
     try:
         url = sys.argv[1]
     except IndexError:
