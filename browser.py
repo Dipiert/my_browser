@@ -4,6 +4,7 @@ import ssl
 import sys
 import os
 import constants
+from typing import Tuple
 
 logger = logging.getLogger("browser.py")
 logger.setLevel(logging.INFO)
@@ -15,7 +16,7 @@ class HTTPSURL:
         self.port = 443
 
     @staticmethod
-    def get_host_and_path(url):
+    def get_host_and_path(url: str) -> Tuple[str, str]:
         url = url.split("://", 1)[1]
         host, path = url.split("/", 1)  # TODO: It requires a "/" as a last char
         path = "/" + path
@@ -25,7 +26,7 @@ class HTTPSURL:
 
         return host, path
 
-    def get_header_and_body(self, host, path):
+    def get_header_and_body(self, host: str, path: str) -> Tuple[str, str]:
         s = socket.socket(
             family=socket.AF_INET,
             type=socket.SOCK_STREAM,
@@ -60,7 +61,7 @@ class HTTPURL:
         self.port = 80
 
     @staticmethod
-    def get_host_and_path(url):
+    def get_host_and_path(url: str) -> Tuple[str, str]:
         url = url.split("://", 1)[1]
         host, path = url.split("/", 1)  # TODO: It requires a "/" as a last char
         path = "/" + path
@@ -70,7 +71,7 @@ class HTTPURL:
 
         return host, path
 
-    def get_header_and_body(self, host, path):
+    def get_header_and_body(self, host: str, path: str) -> Tuple[str, str]:
         s = socket.socket(
             family=socket.AF_INET,
             type=socket.SOCK_STREAM,
@@ -109,7 +110,7 @@ class DataURL:
 
         return host, path
 
-    def get_header_and_body(self, host, path):
+    def get_header_and_body(self, host: str, path: str) -> Tuple[None, str]:
         """
         As per RFC 2397 -> data:[<media type>][;base64],<data>
         """
@@ -119,7 +120,7 @@ class DataURL:
 class FileURL:
 
     @staticmethod
-    def get_host_and_path(url):
+    def get_host_and_path(url: str) -> Tuple[str, str]:
         host = "localhost"
         path = url.split("://", 1)[1]
 
@@ -128,13 +129,13 @@ class FileURL:
 
         return host, path
 
-    def get_header_and_body(self, host, url):
+    def get_header_and_body(self, host: str, url: str) -> Tuple[None, list]:
         logger.info(f"Opening {url}")
         with open(url) as f:
             return None, f.readlines()
 
 
-def get_host_and_path(url):
+def get_host_and_path(url: str) -> Tuple[str, str]:
     host, path = url.split("/", 1)  # TODO: It requires a "/" as a last char
     path = "/" + path
 
@@ -144,7 +145,7 @@ def get_host_and_path(url):
     return host, path
 
 
-def _get_headers(response):
+def _get_headers(response: str) -> None:
     headers = {}
     while True:
         line = response.readline()
@@ -154,7 +155,7 @@ def _get_headers(response):
         headers[header.lower()] = value.strip()
 
 
-def _make_request(path, host):
+def _make_request(path: str, host: str) -> bytes:
     lines = [
         f"GET {path} HTTP/1.1\r\n".encode("utf8"),
         f"Host: {host}\r\n".encode("utf8"),
@@ -164,7 +165,7 @@ def _make_request(path, host):
     return b''.join(lines)
 
 
-def request(url):
+def request(url: str) -> Tuple:
     if url.startswith(constants.Schemes.DATA.value):
         url_parser = DataURL()
     if url.startswith(constants.Schemes.FILE.value):
@@ -181,7 +182,7 @@ def request(url):
     return url_parser.get_header_and_body(host, path)
 
 
-def show(body):
+def show(body: str) -> None:
     in_angle = False
     for c in body:
         if c == "<":
@@ -192,7 +193,7 @@ def show(body):
             print(c, end="")
 
 
-def load(url):
+def load(url: str) -> None:
     headers, body = request(url)
     show(body)
 
