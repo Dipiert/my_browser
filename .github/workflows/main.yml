@@ -6,4 +6,4 @@ jobs:
     name: CI workflow
     steps:
     - run: pip install pylint
-    - run: pylint $(git ls-files '*.py')
+    - run: pylint `find . -name '*.py'|xargs`
