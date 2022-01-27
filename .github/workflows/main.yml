@@ -5,7 +5,4 @@ jobs:
     runs-on: ubuntu-latest
     name: CI workflow
     steps:
-    - name: GitHub Action for pylint
-      uses: cclauss/GitHub-Action-for-pylint@0.7.0
-      with:
-          args: pylint **/*.py
+    - run: pip install pylint
