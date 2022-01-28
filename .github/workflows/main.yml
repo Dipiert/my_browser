@@ -5,7 +5,8 @@ jobs:
     runs-on: ubuntu-latest
     name: CI workflow
     steps:
-    - run: pip install pylint 
+    - run: pip install pylint
+    - run: pwd && find . || echo $?
     - run: pylint browser.py || echo $?
     - run: pylint *.py || echo $?
     - run: find . -name "*.py" -exec pylint {} + || echo $?
