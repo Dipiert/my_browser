@@ -7,4 +7,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: pip install pylint
-      - run: find . -name "*.py" -exec pylint --exit-zero {} +
+      - run: find . -name "*.py" -exec pylint --rcfile=.pylintrc  --exit-zero {} +
