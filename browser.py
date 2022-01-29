@@ -71,7 +71,7 @@ class HTTPSURL:
         )
         statusline = response.readline()
         _, status, explanation = statusline.split(" ", 2)
-        assert status == "200", "{}: {}".format(status, explanation)
+        assert status == "200", f"{status}: {explanation}"
         headers = _get_headers(response)
         body = response.read()
         s.close()
@@ -121,7 +121,7 @@ class HTTPURL:
         )
         statusline = response.readline()
         _, status, explanation = statusline.split(" ", 2)
-        assert status == "200", "{}: {}".format(status, explanation)
+        assert status == "200", f"{status}: {explanation}"
         headers = _get_headers(response)
         body = response.read()
         s.close()
@@ -169,7 +169,7 @@ class FileURL:
     @staticmethod
     def get_header_and_body(_: str, url: str) -> Tuple[None, list]:
         logger.info("Opening %s", url)
-        with open(url) as f:
+        with open(url, encoding='utf-8') as f:
             return None, f.readlines()
 
 
@@ -197,8 +197,8 @@ def _make_request(path: str, host: str) -> bytes:
     lines = [
         f"GET {path} HTTP/1.1\r\n".encode("utf8"),
         f"Host: {host}\r\n".encode("utf8"),
-        f"Connection: close\r\n".encode("utf8"),
-        f"User-Agent: dipiert's browser\r\n\r\n".encode("utf8")
+        "Connection: close\r\n".encode("utf8"),
+        "User-Agent: dipiert's browser\r\n\r\n".encode("utf8")
     ]
     return b''.join(lines)
 
@@ -216,9 +216,8 @@ def request(url: str) -> Tuple:
 
     if not url_parser:
         raise ValueError(f"Unknown scheme in url: {url}")
-    else:
-        host, path = url_parser.get_host_and_path(url)
-        return url_parser.get_header_and_body(host, path)
+    host, path = url_parser.get_host_and_path(url)
+    return url_parser.get_header_and_body(host, path)
 
 
 def show(body: str) -> None:
