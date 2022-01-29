@@ -8,6 +8,7 @@ jobs:
       - uses: actions/checkout@v2
       - run: pip install pylint
       - run: find . -name "*.py" -exec pylint --rcfile=.pylintrc  --exit-zero {} +
+
   tests:
     runs-on: ubuntu-latest
     name: Testing
@@ -15,3 +16,12 @@ jobs:
       - uses: actions/checkout@v2
       - run: pip install pytest
       - run: pytest -vv
+
+  vulns_checks:
+    runs-on: ubuntu-latest
+    name: Vulnerabilities check
+    steps:
+      - uses: actions/checkout@v2
+      - run: pip install bandit
+      - run: bandit . -r
+
