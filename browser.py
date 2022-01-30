@@ -71,7 +71,8 @@ class HTTPSURL:
         )
         statusline = response.readline()
         _, status, explanation = statusline.split(" ", 2)
-        assert status == "200", f"{status}: {explanation}"
+        if status != "200":
+            raise AssertionError(f"Expected code 200. Got {status}: {explanation}")
         headers = _get_headers(response)
         body = response.read()
         s.close()
@@ -121,7 +122,8 @@ class HTTPURL:
         )
         statusline = response.readline()
         _, status, explanation = statusline.split(" ", 2)
-        assert status == "200", f"{status}: {explanation}"
+        if status != "200":
+            raise AssertionError(f"Expected code 200. Got {status}: {explanation}")
         headers = _get_headers(response)
         body = response.read()
         s.close()
