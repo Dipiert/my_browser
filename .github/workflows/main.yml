@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Code Coverage
     steps:
-    - uses: checkout@v2
+    - uses: actions/checkout@v2
     - name: Generate Report
       run: |
         pip install coverage
