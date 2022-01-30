@@ -21,10 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     name: Code Coverage
     steps:
-      - name: Generate Report
-      - run: pip install coverage
-      - run: coverage run -m pytest -vv
-      - name: Upload Coverage to Codecov
-      - uses: codecov/codecov-action@v1
+    - uses: checkout@v2
+    - name: Generate Report
+      run: |
+        pip install coverage
+        coverage run -m pytest -vv
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v1
 
 
